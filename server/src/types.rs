@@ -6,7 +6,7 @@ pub enum Role {
     System,
     User,
     Assistant,
-    Tool
+    Tool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
