@@ -1,38 +1,71 @@
 pub mod ai;
 
 pub use ai::*;
+use std::collections::HashMap;
 
 pub mod error;
 
 use crate::invoke::invoke;
-use crate::types::Provider;
+use crate::types::{ModelsByCode, Provider, ProviderModel};
 use axum::{routing::get, Router};
 use error::Result;
 use futures::stream::Stream;
+use log;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio_stream::StreamExt as _;
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Opts {
-    host: &'static str,
+    host: String,
 
     // Provider-specific options
     #[cfg(feature = "openai")]
     openai: providers::openai::OpenAIOpts,
 }
 
-pub struct State {
+pub(crate) struct State<'a> {
     opts: Opts,
+    models: ModelsByCode<'a>,
+}
+
+fn get_provider_models(providers: Vec<&dyn Provider>) -> HashMap<String, ProviderModel> {
+    let mut models = HashMap::new();
+    for provider in providers {
+        for model in provider.models() {
+            models.insert(
+                model.code.clone(),
+                ProviderModel {
+                    provider,
+                    model: &model,
+                },
+            );
+        }
+    }
+    models
 }
 
 pub async fn serve(providers: Vec<&dyn Provider>, opts: Opts) -> Result<()> {
-    let state = Arc::new(State { opts });
+    let models = get_provider_models(providers);
+    log::info!(
+        "Loaded {} models across {} providers",
+        models.len(),
+        providers.len()
+    );
+
+    let state = Arc::new(State {
+        opts: opts.clone(),
+        models,
+    });
+
     let app = Router::new()
         .route("/invoke", get(invoke))
         .with_state(state);
 
+    log::info!("listening on http://{}", opts.host.clone());
+
     let listener = tokio::net::TcpListener::bind(opts.host).await.unwrap();
     axum::serve(listener, app).await?;
+
     Ok(())
 }
