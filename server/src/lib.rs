@@ -1,4 +1,6 @@
+mod config;
 mod error;
+mod providers;
 mod types;
 
 use axum::{
@@ -25,8 +27,7 @@ async fn invoke() -> Sse<impl Stream<Item = Result<Event>>> {
     )
 }
 
-#[tokio::main]
-async fn main() {
+async fn serve() {
     let app = Router::new().route("/invoke", get(invoke));
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
