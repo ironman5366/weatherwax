@@ -1,9 +1,11 @@
 use crate::Opts;
-use futures::Stream;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Invocation {}
+pub struct Invocation {
+    model: Option<String>,
+    messages: Vec<Message>,
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -20,10 +22,18 @@ pub struct Message {
     pub content: String,
 }
 
+pub struct Model {
+    code: String,
+    supports_function_calling: bool,
+    supports_images: bool,
+}
+
 pub trait Provider {
     fn new(opts: Opts) -> Self
     where
         Self: Sized;
 
-    fn generate(&self, messages: Vec<Message>);
+    fn models(&self) -> Vec<Model>;
+
+    fn invoke(&self, model: Model, messages: Vec<Message>) {}
 }
