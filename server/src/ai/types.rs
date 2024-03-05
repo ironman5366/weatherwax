@@ -1,3 +1,5 @@
+use crate::Opts;
+use futures::Stream;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -19,5 +21,9 @@ pub struct Message {
 }
 
 pub trait Provider {
+    fn new(opts: Opts) -> Self
+    where
+        Self: Sized;
+
     fn generate(&self, messages: Vec<Message>);
 }

@@ -1,35 +1,35 @@
-mod config;
-mod error;
-mod providers;
-mod types;
+pub mod ai;
 
-use axum::{
-    response::sse::{Event, Sse},
-    routing::get,
-    Router,
-};
-use error::Result;
-use std::time::Duration;
+pub use ai::*;
+
+pub mod error;
+
+use crate::invoke::invoke;
+use crate::types::Provider;
+use axum::{routing::get, Router};
+use futures::stream::Stream;
+use std::sync::Arc;
 use tokio_stream::StreamExt as _;
 
-use futures::stream::{self, Stream};
+#[derive(Copy, Clone, Debug)]
+pub struct Opts {
+    host: &'static str,
 
-async fn invoke() -> Sse<impl Stream<Item = Result<Event>>> {
-    let stream = stream::iter(vec![
-        Ok(Event::default().data("hello")),
-        Ok(Event::default().data("world")),
-    ])
-    .throttle(Duration::from_secs(3));
-
-    Sse::new(stream).keep_alive(
-        // Send a keep-alive every 15 seconds
-        axum::response::sse::KeepAlive::new().interval(Duration::from_secs(15)),
-    )
+    // Provider-specific options
+    #[cfg(feature = "openai")]
+    openai_opts: providers::openai::Opts,
 }
 
-async fn serve() {
-    let app = Router::new().route("/invoke", get(invoke));
+pub struct State {
+    opts: Opts,
+}
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+async fn serve(opts: Opts) {
+    let state = Arc::new(State { opts });
+    let app = Router::new()
+        .route("/invoke", get(invoke))
+        .with_state(state);
+
+    let listener = tokio::net::TcpListener::bind(opts.host).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
