@@ -1,11 +1,8 @@
-use crate::Opts;
 use futures::Stream;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::pin::Pin;
-use std::sync::Arc;
-use tokio::sync::Mutex;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Invocation {

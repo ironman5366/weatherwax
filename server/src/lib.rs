@@ -8,15 +8,12 @@ pub mod error;
 use crate::invoke::invoke;
 use crate::types::{ModelsByCode, Provider, ProviderModel};
 use axum::routing::post;
-use axum::{routing::get, Router};
+use axum::Router;
 use error::Result;
-use futures::stream::Stream;
 use log;
 use serde::{Deserialize, Serialize};
-use std::sync::{Arc, Mutex, RwLock};
-use tokio_stream::StreamExt as _;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct Opts {
     host: String,
 
@@ -64,11 +61,9 @@ pub async fn serve(providers: Vec<&'static dyn Provider>, opts: Opts) -> Result<
         models,
     };
 
-    let thread_safe_state = Arc::new(Mutex::new(state));
-
     let app = Router::new()
         .route("/invoke", post(invoke))
-        .with_state(thread_safe_state);
+        .with_state(state);
 
     log::info!("listening on http://{}", opts.host.clone());
 

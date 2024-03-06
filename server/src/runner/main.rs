@@ -23,7 +23,7 @@ async fn main() {
     #[cfg(feature = "openai")]
     {
         use weatherwax::ai::providers::openai::create_openai_provider;
-        providers.push(&create_openai_provider(opts.clone()))
+        providers.push(&create_openai_provider(opts.clone()).await)
     }
 
     serve(providers, opts).await.unwrap();
