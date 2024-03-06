@@ -2,14 +2,13 @@ use crate::error::{Result, Error};
 use crate::types::{Message, Model, Provider, Role};
 use crate::Opts;
 use async_openai::config::OpenAIConfig;
-use async_openai::error::OpenAIError;
 use async_openai::types::{ChatCompletionRequestAssistantMessageArgs, ChatCompletionRequestFunctionMessageArgs, ChatCompletionRequestSystemMessageArgs, ChatCompletionRequestToolMessageArgs, ChatCompletionRequestUserMessageArgs, Role as OAIRole};
 use async_openai::types::{ChatCompletionRequestMessage, CreateChatCompletionStreamResponse, CreateChatCompletionRequestArgs};
 
 
 use futures::Stream;
 use serde::Deserialize;
-use std::pin::{Pin, pin};
+use std::pin::{Pin};
 use async_openai::Client;
 use async_trait::async_trait;
 use tokio_stream::StreamExt as _;
