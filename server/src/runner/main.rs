@@ -7,7 +7,7 @@ use weatherwax::{serve, Opts};
 async fn main() {
     // Ignore cargo, it doesn't understand that this need to be mut for the cfg
     #[allow(unused_mut)]
-    let mut providers: Vec<&'static dyn Provider> = vec![];
+    let mut providers: Vec<&(dyn Provider + Send + Sync)> = vec![];
 
     let config = Config::builder()
         .set_default("host", "0.0.0.0:8000")

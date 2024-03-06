@@ -13,7 +13,7 @@ use tokio_stream::StreamExt;
 fn resolve_model<'a>(
     state: ServerState,
     model_code: Option<String>,
-) -> Result<&'static ProviderModel> {
+) -> Result<&'a ProviderModel<'a>> {
     // At some point this will likely involve defaults and heuristics like cheapest model or
     // best model. Right now we just do model by code if it was provided, and the first model if it isn't
 
@@ -40,7 +40,7 @@ pub async fn invoke(
 
     let stream = provider_model
         .provider
-        .invoke(provider_model.model, invocation.messages)
+        .invoke(&provider_model.model, invocation.messages)
         .map(|message| Ok(Event::default().json_data(&message)?));
 
     Sse::new(stream).keep_alive(

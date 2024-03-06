@@ -26,20 +26,23 @@ pub struct Opts {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct ServerState {
+pub(crate) struct ServerState<'a> {
     opts: Opts,
-    models: ModelsByCode,
+    models: ModelsByCode<'a>,
 }
 
-fn get_provider_models(providers: &Vec<&dyn Provider>) -> HashMap<String, ProviderModel> {
+fn get_provider_models(
+    providers: &Vec<&(dyn Provider + Send + Sync)>,
+) -> HashMap<String, ProviderModel> {
     let mut models = HashMap::new();
+
     for provider in providers {
         for model in provider.models() {
             models.insert(
                 model.code.clone(),
                 ProviderModel {
-                    provider,
-                    model: &model,
+                    provider: *provider,
+                    model,
                 },
             );
         }
@@ -47,8 +50,9 @@ fn get_provider_models(providers: &Vec<&dyn Provider>) -> HashMap<String, Provid
     models
 }
 
-pub async fn serve(providers: Vec<&dyn Provider>, opts: Opts) -> Result<()> {
+pub async fn serve(providers: Vec<&(dyn Provider + Send + Sync)>, opts: Opts) -> Result<()> {
     let models = get_provider_models(&providers);
+
     log::info!(
         "Loaded {} models across {} providers",
         models.len(),

@@ -29,20 +29,21 @@ pub struct Message {
     pub content: String,
 }
 
+#[derive(Clone, Debug)]
 pub struct Model {
     pub code: String,
     pub supports_function_calling: bool,
     pub supports_images: bool,
 }
 
-pub trait Provider {
+pub trait Provider: Send + Sync {
     fn name(&self) -> &'static str;
 
     fn new(opts: Opts) -> Self
     where
         Self: Sized;
 
-    fn models(&self) -> Vec<Box<Model>>;
+    fn models(&self) -> Vec<&Model>;
 
     fn invoke(
         &self,
@@ -60,12 +61,12 @@ impl Debug for dyn Provider {
 }
 
 #[derive(Clone)]
-pub(crate) struct ProviderModel {
-    pub provider: &'static (dyn Provider + Send + Sync),
-    pub model: &'static Model,
+pub(crate) struct ProviderModel<'a> {
+    pub provider: &'a (dyn Provider + Send + Sync),
+    pub model: &'a Model,
 }
 
-impl Debug for ProviderModel {
+impl Debug for ProviderModel<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ProviderModel")
             .field("provider", &self.provider.name())
@@ -74,4 +75,4 @@ impl Debug for ProviderModel {
     }
 }
 
-pub(crate) type ModelsByCode = HashMap<String, ProviderModel>;
+pub(crate) type ModelsByCode<'a> = HashMap<String, ProviderModel<'a>>;

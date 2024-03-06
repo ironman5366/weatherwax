@@ -24,17 +24,19 @@ impl Provider for OpenAIProvider {
         }
     }
 
-    async fn models(&self) -> Vec<Model> {
+    async fn models(&self) -> Vec<Box<Model>> {
         // List the available models
         let all_models = self.client.models().list().await.unwrap();
         all_models
             .data
             .into_iter()
-            .map(|model| Model {
-                code: format!("openai::{}", model.id),
-                // TODO: keep a whitelist for this
-                supports_images: true,
-                supports_function_calling: true,
+            .map(|model| {
+                Box::new(Model {
+                    code: format!("openai::{}", model.id),
+                    // TODO: keep a whitelist for this
+                    supports_images: true,
+                    supports_function_calling: true,
+                })
             })
             .collect()
     }
