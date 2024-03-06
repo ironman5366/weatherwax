@@ -3,14 +3,6 @@ name = "weatherwax"
 version = "0.1.0"
 edition = "2021"
 
-[lib]
-name = "weatherwax"
-path = "src/lib.rs"
-
-[[bin]]
-name = "weatherwax-runner"
-path = "src/runner/main.rs"
-
 [dependencies]
 async-openai = { version = "0.19.0", optional = true }
 
@@ -24,6 +16,8 @@ tokio-stream = "0.1.14"
 config = "0.14.0"
 secrecy = "0.8.0"
 log = "0.4.20"
+env_logger = "0.11.3"
+dotenvy = "0.15.7"
 
 
 [features]

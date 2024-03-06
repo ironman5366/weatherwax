@@ -8,7 +8,7 @@ use std::pin::Pin;
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct OpenAIOpts {
-    config: OpenAIConfig,
+    api_key: String,
 }
 
 pub struct OpenAIProvider {
@@ -21,7 +21,8 @@ impl Provider for OpenAIProvider {
     where
         Self: Sized,
     {
-        let client = Client::with_config(opts.openai.config);
+        let client = Client::with_config(OpenAIConfig::new().with_api_key(opts.openai.api_key));
+
         // List the available models
         let api_models = client.models().list().await.unwrap();
         let models = api_models
@@ -36,6 +37,11 @@ impl Provider for OpenAIProvider {
                 }
             })
             .collect();
+
+        for model in &models {
+            log::debug!("Loaded openai model: {:?}", model);
+        }
+
         Self { client, models }
     }
 
