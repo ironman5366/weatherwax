@@ -2,6 +2,7 @@ use crate::Opts;
 use futures::Stream;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::pin::Pin;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -35,11 +36,13 @@ pub struct Model {
 }
 
 pub trait Provider {
+    fn name(&self) -> &'static str;
+
     fn new(opts: Opts) -> Self
     where
         Self: Sized;
 
-    fn models(&self) -> Vec<Model>;
+    fn models(&self) -> Vec<Box<Model>>;
 
     fn invoke(
         &self,
@@ -48,9 +51,27 @@ pub trait Provider {
     ) -> Pin<Box<dyn Stream<Item = Message> + Send>>;
 }
 
-pub(crate) struct ProviderModel<'a> {
-    pub provider: &'a dyn Provider,
-    pub model: &'a Model,
+impl Debug for dyn Provider {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Provider")
+            .field("name", &self.name())
+            .finish()
+    }
 }
 
-pub(crate) type ModelsByCode<'a> = HashMap<String, ProviderModel<'a>>;
+#[derive(Clone)]
+pub(crate) struct ProviderModel {
+    pub provider: &'static (dyn Provider + Send + Sync),
+    pub model: &'static Model,
+}
+
+impl Debug for ProviderModel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ProviderModel")
+            .field("provider", &self.provider.name())
+            .field("model", &self.model.code)
+            .finish()
+    }
+}
+
+pub(crate) type ModelsByCode = HashMap<String, ProviderModel>;

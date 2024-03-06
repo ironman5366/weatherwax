@@ -7,6 +7,7 @@ pub mod error;
 
 use crate::invoke::invoke;
 use crate::types::{ModelsByCode, Provider, ProviderModel};
+use axum::routing::post;
 use axum::{routing::get, Router};
 use error::Result;
 use futures::stream::Stream;
@@ -24,12 +25,13 @@ pub struct Opts {
     openai: providers::openai::OpenAIOpts,
 }
 
-pub(crate) struct State<'a> {
+#[derive(Clone, Debug)]
+pub(crate) struct ServerState {
     opts: Opts,
-    models: ModelsByCode<'a>,
+    models: ModelsByCode,
 }
 
-fn get_provider_models(providers: Vec<&dyn Provider>) -> HashMap<String, ProviderModel> {
+fn get_provider_models(providers: &Vec<&dyn Provider>) -> HashMap<String, ProviderModel> {
     let mut models = HashMap::new();
     for provider in providers {
         for model in provider.models() {
@@ -46,20 +48,20 @@ fn get_provider_models(providers: Vec<&dyn Provider>) -> HashMap<String, Provide
 }
 
 pub async fn serve(providers: Vec<&dyn Provider>, opts: Opts) -> Result<()> {
-    let models = get_provider_models(providers);
+    let models = get_provider_models(&providers);
     log::info!(
         "Loaded {} models across {} providers",
         models.len(),
         providers.len()
     );
 
-    let state = Arc::new(State {
+    let state = ServerState {
         opts: opts.clone(),
         models,
-    });
+    };
 
     let app = Router::new()
-        .route("/invoke", get(invoke))
+        .route("/invoke", post(invoke))
         .with_state(state);
 
     log::info!("listening on http://{}", opts.host.clone());

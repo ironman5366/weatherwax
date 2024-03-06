@@ -1,14 +1,19 @@
 use axum::response::sse::{Event, Sse};
 use std::time::Duration;
 
-use crate::error::Error::NoModelAvailableError;
+use crate::error::Error::{ModelNotFoundError, NoModelAvailableError};
 use crate::error::Result;
 use crate::types::{Invocation, Provider, ProviderModel};
-use crate::State;
+use crate::ServerState;
+use axum::debug_handler;
+use axum::extract::{Json, State};
 use futures::stream::Stream;
 use tokio_stream::StreamExt;
 
-fn resolve_model<'a>(state: State, model_code: Option<String>) -> Result<&'a ProviderModel<'a>> {
+fn resolve_model<'a>(
+    state: ServerState,
+    model_code: Option<String>,
+) -> Result<&'static ProviderModel> {
     // At some point this will likely involve defaults and heuristics like cheapest model or
     // best model. Right now we just do model by code if it was provided, and the first model if it isn't
 
@@ -18,15 +23,20 @@ fn resolve_model<'a>(state: State, model_code: Option<String>) -> Result<&'a Pro
             let (_, model) = state.models.iter().next().ok_or(NoModelAvailableError)?;
             Ok(model)
         }
-        Some(model_code) => Ok(state.models.get(&model_code)?),
+        Some(model_code) => Ok(state
+            .models
+            .get(&model_code)
+            .ok_or(ModelNotFoundError(model_code))?),
     }
 }
 
+#[debug_handler]
 pub async fn invoke(
-    state: State<'_>,
-    invocation: Invocation,
+    State(state): State<ServerState>,
+    Json(invocation): Json<Invocation>,
 ) -> Sse<impl Stream<Item = Result<Event>>> {
-    let provider_model = resolve_model(state, invocation.model)?;
+    // Get the invocation from the body
+    let provider_model = resolve_model(state, invocation.model).unwrap();
 
     let stream = provider_model
         .provider

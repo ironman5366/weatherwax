@@ -14,6 +14,10 @@ pub struct OpenAIProvider {
 }
 
 impl Provider for OpenAIProvider {
+    fn name(&self) -> &'static str {
+        "openai"
+    }
+
     fn new(opts: crate::Opts) -> Self {
         Self {
             client: Client::with_config(opts.openai.config),
