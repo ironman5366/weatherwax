@@ -34,7 +34,7 @@ pub(crate) async fn invoke(
 ) -> axum::response::Result<Sse<impl Stream<Item=Result<Event>>>> {
     let models = &state.models;
     // Get the invocation from the body
-    let provider_model = resolve_model(models, invocation.model).unwrap();
+    let provider_model = resolve_model(models, invocation.model)?;
 
     let provider_stream = provider_model.provider.invoke(&provider_model.model, invocation.messages).await?;
 

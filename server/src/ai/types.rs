@@ -32,6 +32,12 @@ pub struct Message {
     pub content: String,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct MessageDelta {
+    pub role: Option<Role>,
+    pub content: Option<String>,
+}
+
 #[derive(Clone, Debug)]
 pub struct Model {
     pub code: String,
@@ -52,7 +58,7 @@ pub trait Provider: Send + Sync {
         &self,
         model: &Model,
         messages: Vec<Message>,
-    ) -> Result<Pin<Box<dyn Stream<Item=Result<Message>> + Send>>>;
+    ) -> Result<Pin<Box<dyn Stream<Item=Result<MessageDelta>> + Send>>>;
 }
 
 impl Debug for dyn Provider {

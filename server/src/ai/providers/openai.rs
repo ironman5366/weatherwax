@@ -1,9 +1,8 @@
 use crate::error::{Result, Error};
-use crate::types::{Message, Model, Provider, Role};
+use crate::types::{Message, MessageDelta, Model, Provider, Role};
 use crate::Opts;
 use async_openai::config::OpenAIConfig;
-use async_openai::types::{ChatCompletionRequestAssistantMessageArgs, ChatCompletionRequestFunctionMessageArgs, ChatCompletionRequestSystemMessageArgs, ChatCompletionRequestToolMessageArgs, ChatCompletionRequestUserMessageArgs, Role as OAIRole};
-use async_openai::types::{ChatCompletionRequestMessage, CreateChatCompletionStreamResponse, CreateChatCompletionRequestArgs};
+use async_openai::types::{ChatCompletionRequestAssistantMessageArgs, ChatCompletionRequestFunctionMessageArgs, ChatCompletionRequestSystemMessageArgs, ChatCompletionRequestToolMessageArgs, ChatCompletionRequestUserMessageArgs, Role as OAIRole, ChatCompletionRequestMessage, CreateChatCompletionStreamResponse, CreateChatCompletionRequestArgs};
 
 
 use futures::Stream;
@@ -60,10 +59,10 @@ impl From<OAIRole> for Role {
     }
 }
 
-impl TryFrom<CreateChatCompletionStreamResponse> for Message {
+impl TryFrom<CreateChatCompletionStreamResponse> for MessageDelta {
     type Error = Error;
 
-    fn try_from(resp: CreateChatCompletionStreamResponse) -> Result<Message> {
+    fn try_from(resp: CreateChatCompletionStreamResponse) -> Result<MessageDelta> {
         let oai_message =
             resp.choices
                 .first()
@@ -73,14 +72,14 @@ impl TryFrom<CreateChatCompletionStreamResponse> for Message {
 
         let delta = &oai_message.delta;
 
-        Ok(Message {
-            role: delta.role.ok_or(OpenAIConversionError("No role in OAI message".to_string()))?.into(),
-            content: delta
-                .content
-                .clone()
-                .ok_or(OpenAIConversionError(
-                    "No content in OpenAI response".to_string(),
-                ))?,
+        let role = match delta.role {
+            Some(r) => Some(r.into()),
+            None => None,
+        };
+
+        Ok(MessageDelta {
+            role,
+            content: delta.content.clone(),
         })
     }
 }
@@ -100,7 +99,7 @@ impl Provider for OpenAIProvider {
             .into_iter()
             .map(|model| {
                 Model {
-                    code: format!("openai::{}", model.id),
+                    code: model.id,
                     // TODO: keep a whitelist for this
                     supports_images: true,
                     supports_function_calling: true,
@@ -127,7 +126,7 @@ impl Provider for OpenAIProvider {
         &self,
         model: &Model,
         messages: Vec<Message>,
-    ) -> Result<Pin<Box<dyn Stream<Item=Result<Message>> + Send>>> {
+    ) -> Result<Pin<Box<dyn Stream<Item=Result<MessageDelta>> + Send>>> {
         let oai_messages: Vec<ChatCompletionRequestMessage> = messages
             .into_iter()
             .map(|message| message.try_into())
@@ -140,7 +139,7 @@ impl Provider for OpenAIProvider {
 
         let stream = self.client.chat().create_stream(request).await?;
         let message_stream = stream.map(|oai_message| {
-            let message: Message = oai_message?.try_into()?;
+            let message: MessageDelta = oai_message?.try_into()?;
             Ok(message)
         });
         Ok(Box::pin(message_stream))
