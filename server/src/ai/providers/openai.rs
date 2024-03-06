@@ -1,18 +1,16 @@
-use crate::error::{Error, Result};
+use crate::error::{Result, Error};
 use crate::types::{Message, Model, Provider, Role};
 use crate::Opts;
 use async_openai::config::OpenAIConfig;
-use async_openai::types::{
-    ChatCompletionRequestMessage, ChatCompletionRequestSystemMessage,
-    CreateChatCompletionStreamResponse,
-};
-use async_openai::types::{ChatCompletionResponseMessage, Role as OAIRole};
-use async_openai::{
-    types::CreateChatCompletionRequestArgs, ChatCompletionRequestMessageArgs, Client,
-};
+use async_openai::error::OpenAIError;
+use async_openai::types::{ChatCompletionRequestAssistantMessageArgs, ChatCompletionRequestFunctionMessageArgs, ChatCompletionRequestSystemMessageArgs, ChatCompletionRequestToolMessageArgs, ChatCompletionRequestUserMessageArgs, Role as OAIRole};
+use async_openai::types::{ChatCompletionRequestMessage, CreateChatCompletionStreamResponse, CreateChatCompletionRequestArgs};
+
+
 use futures::Stream;
 use serde::Deserialize;
 use std::pin::Pin;
+use async_openai::Client;
 use tokio_stream::StreamExt as _;
 
 #[derive(Clone, Debug, Deserialize)]
@@ -26,19 +24,20 @@ pub struct OpenAIProvider {
 }
 
 impl TryInto<ChatCompletionRequestMessage> for Message {
-    type Error = Error::OpenAIConversionError;
+    type Error = Error;
 
     fn try_into(self) -> Result<ChatCompletionRequestMessage> {
-        ChatCompletionRequestMessageArgs::default()
-            .role(self.role)
-            .content(self.content)
-            .build()?
-            .into()
+        match self.role {
+            Role::System => ChatCompletionRequestSystemMessageArgs::default().content(self.content).build()?.into(),
+            Role::User => ChatCompletionRequestUserMessageArgs::default().content(self.content).build()?.into(),
+            Role::Assistant => ChatCompletionRequestAssistantMessageArgs::default().content(self.content).build()?.into(),
+            Role::Function => ChatCompletionRequestToolMessageArgs::default().content(self.content).build()?.into(),
+        }
     }
 }
 
 impl TryInto<OAIRole> for Role {
-    type Error = Error::OpenAIConversionError;
+    type Error = Error;
 
     fn try_into(self) -> Result<OAIRole> {
         match self {
@@ -51,27 +50,32 @@ impl TryInto<OAIRole> for Role {
 }
 
 impl TryFrom<CreateChatCompletionStreamResponse> for Message {
-    type Error = Error::OpenAIConversionError;
+    type Error = Error;
 
     fn try_from(resp: CreateChatCompletionStreamResponse) -> Result<Message> {
-        let oai_message = resp.choices.first().ok_or(Error::OpenAIConversionError(
-            "No choices in OpenAI response".to_string(),
-        ))?;
+        let oai_message =
+            resp.choices
+                .first()
+                .ok_or(Error::OpenAIConversionError(
+                    "No choices in OpenAI response".to_string(),
+                ))?;
         let delta = &oai_message.delta;
 
         Ok(Message {
             role: delta.role.into(),
-            content: delta.content.ok_or(Error::OpenAIConversionError(
-                "No content in OpenAI response".to_string(),
-            ))?,
+            content: delta
+                .content
+                .ok_or(Error::OpenAIConversionError(
+                    "No content in OpenAI response".to_string(),
+                ))?,
         })
     }
 }
 
 impl Provider for OpenAIProvider {
     async fn new(opts: Opts) -> Result<Self>
-    where
-        Self: Sized,
+        where
+            Self: Sized,
     {
         let client = Client::with_config(OpenAIConfig::new().with_api_key(opts.openai.api_key));
 
@@ -109,7 +113,7 @@ impl Provider for OpenAIProvider {
         &self,
         model: &Model,
         messages: Vec<Message>,
-    ) -> Result<Pin<Box<dyn Stream<Item = Message> + Send>>> {
+    ) -> Result<Pin<Box<dyn Stream<Item=Message> + Send>>> {
         let request = CreateChatCompletionRequestArgs::default()
             .model(&model.code)
             .messages(messages.into_iter().map(|m| m.try_into()?).collect())

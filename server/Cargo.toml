@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-async-openai = { version = "0.19.0", optional = true }
+async-openai = { version = "0.19.0" }
 
 axum = { version = "0.7", features = ["macros"] }
 futures = "0.3.30"
@@ -21,4 +21,4 @@ dotenvy = "0.15.7"
 
 
 [features]
-openai = ["async-openai"]
+openai = []
