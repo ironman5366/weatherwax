@@ -1,5 +1,6 @@
 use axum::debug_handler;
 use axum::response::sse::{Event, Sse};
+use std::sync::Arc;
 use std::time::Duration;
 
 use crate::error::Error::{ModelNotFoundError, NoModelAvailableError};
@@ -27,8 +28,8 @@ fn resolve_model(models: &ModelsByCode, model_code: Option<String>) -> Result<&P
 }
 
 #[debug_handler]
-pub async fn invoke(
-    State(state): State<ServerState>,
+pub(crate) async fn invoke(
+    State(state): State<Arc<ServerState>>,
     Json(invocation): Json<Invocation>,
 ) -> Sse<impl Stream<Item = Result<Event>>> {
     let models = &state.models;

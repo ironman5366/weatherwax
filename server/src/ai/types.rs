@@ -1,8 +1,11 @@
+use crate::Opts;
 use futures::Stream;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::future::Future;
 use std::pin::Pin;
+use std::sync::Arc;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Invocation {
@@ -36,6 +39,9 @@ pub struct Model {
 }
 
 pub trait Provider: Send + Sync {
+    fn new(opts: Opts) -> impl Future<Output = Self> + Send
+    where
+        Self: Sized;
     fn name(&self) -> &'static str;
 
     fn models(&self) -> Vec<&Model>;
@@ -55,9 +61,10 @@ impl Debug for dyn Provider {
     }
 }
 
-#[derive(Clone)]
+pub type ProviderPtr = Arc<dyn Provider + Send + Sync>;
+
 pub(crate) struct ProviderModel {
-    pub provider: &'static dyn Provider,
+    pub provider: ProviderPtr,
     pub model: Model,
 }
 

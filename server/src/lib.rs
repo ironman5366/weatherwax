@@ -2,16 +2,17 @@ pub mod ai;
 
 pub use ai::*;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 pub mod error;
 
 use crate::invoke::invoke;
-use crate::types::{ModelsByCode, Provider, ProviderModel};
+use crate::types::{ModelsByCode, Provider, ProviderModel, ProviderPtr};
 use axum::routing::post;
 use axum::Router;
 use error::Result;
 use log;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Opts {
@@ -22,13 +23,13 @@ pub struct Opts {
     openai: providers::openai::OpenAIOpts,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub(crate) struct ServerState {
     opts: Opts,
     models: ModelsByCode,
 }
 
-fn get_provider_models(providers: Vec<&'static dyn Provider>) -> HashMap<String, ProviderModel> {
+fn get_provider_models(providers: Vec<ProviderPtr>) -> HashMap<String, ProviderModel> {
     let mut models = HashMap::new();
 
     for provider in providers {
@@ -36,16 +37,17 @@ fn get_provider_models(providers: Vec<&'static dyn Provider>) -> HashMap<String,
             models.insert(
                 model.code.clone(),
                 ProviderModel {
-                    provider,
+                    provider: provider.clone(),
                     model: model.clone(),
                 },
             );
         }
     }
+
     models
 }
 
-pub async fn serve(providers: Vec<&'static dyn Provider>, opts: Opts) -> Result<()> {
+pub async fn serve(providers: Vec<ProviderPtr>, opts: Opts) -> Result<()> {
     let provider_len = providers.len();
 
     let models = get_provider_models(providers);
@@ -56,10 +58,10 @@ pub async fn serve(providers: Vec<&'static dyn Provider>, opts: Opts) -> Result<
         provider_len
     );
 
-    let state = ServerState {
+    let state = Arc::new(ServerState {
         opts: opts.clone(),
         models,
-    };
+    });
 
     let app = Router::new()
         .route("/invoke", post(invoke))
