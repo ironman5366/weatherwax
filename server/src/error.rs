@@ -8,6 +8,10 @@ pub enum Error {
     NoModelAvailableError,
     #[error("Model {0} not found")]
     ModelNotFoundError(String),
+
+    #[cfg(feature = "openai")]
+    #[error("OpenAI API conversion error: {}")]
+    OpenAIConversionError(String),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

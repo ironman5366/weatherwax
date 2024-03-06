@@ -1,3 +1,4 @@
+use crate::error::Result;
 use crate::Opts;
 use futures::Stream;
 use serde::{Deserialize, Serialize};
@@ -39,7 +40,7 @@ pub struct Model {
 }
 
 pub trait Provider: Send + Sync {
-    fn new(opts: Opts) -> impl Future<Output = Self> + Send
+    fn new(opts: Opts) -> impl Future<Output = Result<Self>> + Send
     where
         Self: Sized;
     fn name(&self) -> &'static str;
