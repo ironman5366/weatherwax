@@ -7,6 +7,7 @@ use std::fmt::Debug;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
+use async_trait::async_trait;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Invocation {
@@ -39,19 +40,20 @@ pub struct Model {
     pub supports_images: bool,
 }
 
+#[async_trait]
 pub trait Provider: Send + Sync {
-    fn new(opts: Opts) -> impl Future<Output = Result<Self>> + Send
-    where
-        Self: Sized;
+    fn new(opts: Opts) -> impl Future<Output=Result<Self>> + Send
+        where
+            Self: Sized;
     fn name(&self) -> &'static str;
 
     fn models(&self) -> Vec<&Model>;
 
-    fn invoke(
+    async fn invoke(
         &self,
         model: &Model,
         messages: Vec<Message>,
-    ) -> Pin<Box<dyn Stream<Item = Message> + Send>>;
+    ) -> Result<Pin<Box<dyn Stream<Item=Message> + Send>>>;
 }
 
 impl Debug for dyn Provider {

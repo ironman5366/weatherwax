@@ -9,9 +9,11 @@ use async_openai::types::{ChatCompletionRequestMessage, CreateChatCompletionStre
 
 use futures::Stream;
 use serde::Deserialize;
-use std::pin::Pin;
+use std::pin::{Pin, pin};
 use async_openai::Client;
+use async_trait::async_trait;
 use tokio_stream::StreamExt as _;
+use crate::error::Error::OpenAIConversionError;
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct OpenAIOpts {
@@ -36,15 +38,25 @@ impl TryInto<ChatCompletionRequestMessage> for Message {
     }
 }
 
-impl TryInto<OAIRole> for Role {
-    type Error = Error;
-
-    fn try_into(self) -> Result<OAIRole> {
+impl Into<OAIRole> for Role {
+    fn into(self) -> OAIRole {
         match self {
-            Role::System => Ok(OAIRole::System),
-            Role::User => Ok(OAIRole::User),
-            Role::Assistant => Ok(OAIRole::Assistant),
-            Role::Function => Ok(OAIRole::Tool),
+            Role::System => OAIRole::System,
+            Role::User => OAIRole::User,
+            Role::Assistant => OAIRole::Assistant,
+            Role::Function => OAIRole::Tool,
+        }
+    }
+}
+
+impl From<OAIRole> for Role {
+    fn from(role: OAIRole) -> Self {
+        match role {
+            OAIRole::System => Role::System,
+            OAIRole::User => Role::User,
+            OAIRole::Assistant => Role::Assistant,
+            OAIRole::Tool => Role::Function,
+            OAIRole::Function => Role::Function,
         }
     }
 }
@@ -56,22 +68,25 @@ impl TryFrom<CreateChatCompletionStreamResponse> for Message {
         let oai_message =
             resp.choices
                 .first()
-                .ok_or(Error::OpenAIConversionError(
+                .ok_or(OpenAIConversionError(
                     "No choices in OpenAI response".to_string(),
                 ))?;
+
         let delta = &oai_message.delta;
 
         Ok(Message {
-            role: delta.role.into(),
+            role: delta.role.ok_or(OpenAIConversionError("No role in OAI message".to_string()))?.into(),
             content: delta
                 .content
-                .ok_or(Error::OpenAIConversionError(
+                .clone()
+                .ok_or(OpenAIConversionError(
                     "No content in OpenAI response".to_string(),
                 ))?,
         })
     }
 }
 
+#[async_trait]
 impl Provider for OpenAIProvider {
     async fn new(opts: Opts) -> Result<Self>
         where
@@ -120,11 +135,11 @@ impl Provider for OpenAIProvider {
             .build()?;
 
         let stream = self.client.chat().create_stream(request).await?;
-        Ok(stream
+        let message_stream: dyn Stream<Item=Message> + Send = stream
             .map(|item| {
                 let message: Message = item.try_into()?;
-                Ok(message)
-            })
-            .into())
+                message
+            });
+        Ok(Box::pin(message_stream))
     }
 }
