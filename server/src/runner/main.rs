@@ -23,7 +23,9 @@ async fn main() {
     #[cfg(feature = "openai")]
     {
         use weatherwax::ai::providers::openai::create_openai_provider;
-        providers.push(&create_openai_provider(opts.clone()).await)
+        // TODO: this needs to get moved to a lazy_static
+        let openai_provider = create_openai_provider(opts.clone()).await;
+        providers.push(&openai_provider);
     }
 
     serve(providers, opts).await.unwrap();
