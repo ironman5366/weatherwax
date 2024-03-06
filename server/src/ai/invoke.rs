@@ -31,18 +31,17 @@ fn resolve_model(models: &ModelsByCode, model_code: Option<String>) -> Result<&P
 pub(crate) async fn invoke(
     State(state): State<Arc<ServerState>>,
     Json(invocation): Json<Invocation>,
-) -> Sse<impl Stream<Item = Result<Event>>> {
+) -> axum::response::Result<Sse<impl Stream<Item=Result<Event>>>> {
     let models = &state.models;
     // Get the invocation from the body
-    let provider_model = resolve_model(models, invocation.model).unwrap();
+    let provider_model = resolve_model(models, invocation.model)?;
 
-    let stream = provider_model
-        .provider
-        .invoke(&provider_model.model, invocation.messages)
-        .map(|message| Ok(Event::default().json_data(&message)?));
+    let provider_stream = provider_model.provider.invoke(&provider_model.model, invocation.messages).await?;
 
-    Sse::new(stream).keep_alive(
+    let stream = provider_stream.map(|message| Ok(Event::default().json_data(&message?)?));
+
+    Ok(Sse::new(stream).keep_alive(
         // Send a keep-alive every 15 seconds
         axum::response::sse::KeepAlive::new().interval(Duration::from_secs(15)),
-    )
+    ))
 }

@@ -7,7 +7,7 @@ use std::sync::Arc;
 pub mod error;
 
 use crate::invoke::invoke;
-use crate::types::{ModelsByCode, Provider, ProviderModel, ProviderPtr};
+use crate::types::{ModelsByCode, ProviderModel, ProviderPtr};
 use axum::routing::post;
 use axum::Router;
 use error::Result;

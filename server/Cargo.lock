@@ -2040,6 +2040,7 @@ name = "weatherwax"
 version = "0.1.0"
 dependencies = [
  "async-openai",
+ "async-trait",
  "axum",
  "config",
  "dotenvy",
