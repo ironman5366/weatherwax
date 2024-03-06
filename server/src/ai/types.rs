@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::pin::Pin;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Invocation {
@@ -39,10 +41,6 @@ pub struct Model {
 pub trait Provider: Send + Sync {
     fn name(&self) -> &'static str;
 
-    fn new(opts: Opts) -> Self
-    where
-        Self: Sized;
-
     fn models(&self) -> Vec<&Model>;
 
     fn invoke(
@@ -61,18 +59,18 @@ impl Debug for dyn Provider {
 }
 
 #[derive(Clone)]
-pub(crate) struct ProviderModel<'a> {
-    pub provider: &'a (dyn Provider + Send + Sync),
-    pub model: &'a Model,
+pub(crate) struct ProviderModel {
+    pub provider: &'static dyn Provider,
+    pub model: Model,
 }
 
-impl Debug for ProviderModel<'_> {
+impl Debug for ProviderModel {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ProviderModel")
-            .field("provider", &self.provider.name())
+            //.field("provider", &self.provider.name())
             .field("model", &self.model.code)
             .finish()
     }
 }
 
-pub(crate) type ModelsByCode<'a> = HashMap<String, ProviderModel<'a>>;
+pub(crate) type ModelsByCode = HashMap<String, ProviderModel>;

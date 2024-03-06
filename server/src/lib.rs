@@ -13,7 +13,7 @@ use error::Result;
 use futures::stream::Stream;
 use log;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, RwLock};
 use tokio_stream::StreamExt as _;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -26,14 +26,12 @@ pub struct Opts {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct ServerState<'a> {
+pub(crate) struct ServerState {
     opts: Opts,
-    models: ModelsByCode<'a>,
+    models: ModelsByCode,
 }
 
-fn get_provider_models(
-    providers: &Vec<&(dyn Provider + Send + Sync)>,
-) -> HashMap<String, ProviderModel> {
+fn get_provider_models(providers: Vec<&'static dyn Provider>) -> HashMap<String, ProviderModel> {
     let mut models = HashMap::new();
 
     for provider in providers {
@@ -41,8 +39,8 @@ fn get_provider_models(
             models.insert(
                 model.code.clone(),
                 ProviderModel {
-                    provider: *provider,
-                    model,
+                    provider,
+                    model: model.clone(),
                 },
             );
         }
@@ -50,13 +48,15 @@ fn get_provider_models(
     models
 }
 
-pub async fn serve(providers: Vec<&(dyn Provider + Send + Sync)>, opts: Opts) -> Result<()> {
-    let models = get_provider_models(&providers);
+pub async fn serve(providers: Vec<&'static dyn Provider>, opts: Opts) -> Result<()> {
+    let provider_len = providers.len();
+
+    let models = get_provider_models(providers);
 
     log::info!(
         "Loaded {} models across {} providers",
         models.len(),
-        providers.len()
+        provider_len
     );
 
     let state = ServerState {
@@ -64,9 +64,11 @@ pub async fn serve(providers: Vec<&(dyn Provider + Send + Sync)>, opts: Opts) ->
         models,
     };
 
+    let thread_safe_state = Arc::new(Mutex::new(state));
+
     let app = Router::new()
         .route("/invoke", post(invoke))
-        .with_state(state);
+        .with_state(thread_safe_state);
 
     log::info!("listening on http://{}", opts.host.clone());
 

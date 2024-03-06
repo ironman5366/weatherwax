@@ -1,4 +1,5 @@
 use crate::types::{Message, Model, Provider, Role};
+use crate::Opts;
 use async_openai::config::OpenAIConfig;
 use async_openai::{types::CreateChatCompletionRequestArgs, Client};
 use futures::{stream, Stream};
@@ -9,6 +10,7 @@ pub struct OpenAIOpts {
     config: OpenAIConfig,
 }
 
+#[derive(Clone)]
 pub struct OpenAIProvider {
     client: Client<OpenAIConfig>,
 }
@@ -16,12 +18,6 @@ pub struct OpenAIProvider {
 impl Provider for OpenAIProvider {
     fn name(&self) -> &'static str {
         "openai"
-    }
-
-    fn new(opts: crate::Opts) -> Self {
-        Self {
-            client: Client::with_config(opts.openai.config),
-        }
     }
 
     async fn models(&self) -> Vec<Box<Model>> {
@@ -48,4 +44,9 @@ impl Provider for OpenAIProvider {
     ) -> Pin<Box<dyn Stream<Item = Message>>> {
         unimplemented!()
     }
+}
+
+pub fn create_openai_provider(opts: Opts) -> OpenAIProvider {
+    let client = Client::with_config(opts.openai.config);
+    OpenAIProvider { client }
 }

@@ -7,7 +7,7 @@ use weatherwax::{serve, Opts};
 async fn main() {
     // Ignore cargo, it doesn't understand that this need to be mut for the cfg
     #[allow(unused_mut)]
-    let mut providers: Vec<&(dyn Provider + Send + Sync)> = vec![];
+    let mut providers: Vec<&'static dyn Provider> = vec![];
 
     let config = Config::builder()
         .set_default("host", "0.0.0.0:8000")
@@ -22,8 +22,8 @@ async fn main() {
 
     #[cfg(feature = "openai")]
     {
-        use weatherwax::ai::providers::openai::OpenAIProvider;
-        providers.push(&OpenAIProvider::new(opts));
+        use weatherwax::ai::providers::openai::create_openai_provider;
+        providers.push(&create_openai_provider(opts.clone()))
     }
 
     serve(providers, opts).await.unwrap();
