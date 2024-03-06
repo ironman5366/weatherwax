@@ -16,7 +16,7 @@ async fn main() {
 
     // Ignore cargo, it doesn't understand that this need to be mut for the cfg
     #[allow(unused_mut)]
-    let mut providers: Vec<ProviderPtr> = vec![];
+        let mut providers: Vec<ProviderPtr> = vec![];
 
     let config = Config::builder()
         .set_default("host", "0.0.0.0:8000")
@@ -34,7 +34,7 @@ async fn main() {
     {
         log::info!("Loading OpenAI provider...");
         use weatherwax::ai::providers::openai::OpenAIProvider;
-        let openai_provider = OpenAIProvider::new(opts.clone()).await;
+        let openai_provider = OpenAIProvider::new(opts.clone()).await.expect("Couldn't load OpenAI provider");
         providers.push(Arc::new(openai_provider));
     }
 

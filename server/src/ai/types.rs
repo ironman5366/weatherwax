@@ -42,7 +42,7 @@ pub struct Model {
 
 #[async_trait]
 pub trait Provider: Send + Sync {
-    fn new(opts: Opts) -> impl Future<Output=Result<Self>> + Send
+    async fn new(opts: Opts) -> Result<Self>
         where
             Self: Sized;
     fn name(&self) -> &'static str;
@@ -53,7 +53,7 @@ pub trait Provider: Send + Sync {
         &self,
         model: &Model,
         messages: Vec<Message>,
-    ) -> Result<Pin<Box<dyn Stream<Item=Message> + Send>>>;
+    ) -> Result<Pin<Box<dyn Stream<Item=Result<Message>> + Send>>>;
 }
 
 impl Debug for dyn Provider {

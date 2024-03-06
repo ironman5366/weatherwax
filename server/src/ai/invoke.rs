@@ -38,7 +38,7 @@ pub(crate) async fn invoke(
 
     let provider_stream = provider_model.provider.invoke(&provider_model.model, invocation.messages).await?;
 
-    let stream = provider_stream.map(|message| Ok(Event::default().json_data(&message)?));
+    let stream = provider_stream.map(|message| Ok(Event::default().json_data(&message?)?));
 
     Ok(Sse::new(stream).keep_alive(
         // Send a keep-alive every 15 seconds

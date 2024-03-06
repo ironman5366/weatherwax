@@ -30,10 +30,10 @@ impl TryInto<ChatCompletionRequestMessage> for Message {
 
     fn try_into(self) -> Result<ChatCompletionRequestMessage> {
         match self.role {
-            Role::System => ChatCompletionRequestSystemMessageArgs::default().content(self.content).build()?.into(),
-            Role::User => ChatCompletionRequestUserMessageArgs::default().content(self.content).build()?.into(),
-            Role::Assistant => ChatCompletionRequestAssistantMessageArgs::default().content(self.content).build()?.into(),
-            Role::Function => ChatCompletionRequestToolMessageArgs::default().content(self.content).build()?.into(),
+            Role::System => Ok(ChatCompletionRequestSystemMessageArgs::default().content(self.content).build()?.into()),
+            Role::User => Ok(ChatCompletionRequestUserMessageArgs::default().content(self.content).build()?.into()),
+            Role::Assistant => Ok(ChatCompletionRequestAssistantMessageArgs::default().content(self.content).build()?.into()),
+            Role::Function => Ok(ChatCompletionRequestToolMessageArgs::default().content(self.content).build()?.into()),
         }
     }
 }
@@ -128,18 +128,22 @@ impl Provider for OpenAIProvider {
         &self,
         model: &Model,
         messages: Vec<Message>,
-    ) -> Result<Pin<Box<dyn Stream<Item=Message> + Send>>> {
+    ) -> Result<Pin<Box<dyn Stream<Item=Result<Message>> + Send>>> {
+        let oai_messages: Vec<ChatCompletionRequestMessage> = messages
+            .into_iter()
+            .map(|message| message.try_into())
+            .collect::<Result<Vec<ChatCompletionRequestMessage>>>()?;
+
         let request = CreateChatCompletionRequestArgs::default()
             .model(&model.code)
-            .messages(messages.into_iter().map(|m| m.try_into()?).collect())
+            .messages(oai_messages)
             .build()?;
 
         let stream = self.client.chat().create_stream(request).await?;
-        let message_stream: dyn Stream<Item=Message> + Send = stream
-            .map(|item| {
-                let message: Message = item.try_into()?;
-                message
-            });
+        let message_stream = stream.map(|oai_message| {
+            let message: Message = oai_message?.try_into()?;
+            Ok(message)
+        });
         Ok(Box::pin(message_stream))
     }
 }
